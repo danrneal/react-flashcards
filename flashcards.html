@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <title>Flashcards</title>
+    <style>
+        #app {
+            text-align: center;
+        }
+
+        table,
+        td,
+        th {
+            border: 1px solid black;
+        }
+
+        table {
+            margin: auto;
+            border-collapse: collapse;
+        }
+
+        td,
+        th {
+            padding: 10px;
+        }
+
+        .learned {
+            color: grey;
+            text-decoration: line-through;
+        }
+
+        #shuffle {
+            margin-bottom: 20px;
+        }
+
+        .card {
+            display: flex;
+            border: 5px solid black;
+            background-color: lightgrey;
+            width: 250px;
+            height: 150px;
+            margin: 10px auto;
+        }
+
+        .content {
+            margin: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app"></div>
+    <script type="text/babel">
+
+        class CardEditor extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    front: "",
+                    back: "",
+                };
+            }
+
+            render() {
+                const rows = this.props.cards.map((card, i) => {
+                    return (
+                        <tr key={i}>
+                            <td>{card.front}</td>
+                            <td>{card.back}</td>
+                            <td>
+                                <button data-index={i} onClick={this.deleteCard}>
+                                    &#10007;
+                                </button>
+                            </td>
+                            <td>
+                                <button data-index={i} onClick={this.learnCard}>
+                                    &#9744;
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                });
+                const learnedRows = this.props.learnedCards.map((card, i) => {
+                    return (
+                        <tr key={i + this.props.cards.length} className="learned">
+                            <td>{card.front}</td>
+                            <td>{card.back}</td>
+                            <td>
+                                <button data-index={i} onClick={this.deleteLearnedCard}>
+                                    &#10007;
+                                </button>
+                            </td>
+                            <td>
+                                <button data-index={i} onClick={this.unlearnCard}>
+                                    &#9745;
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                });
+                return (
+                    <div>
+                        <h2>Card Editor</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Front</th>
+                                    <th>Back</th>
+                                    <th>Delete</th>
+                                    <th>Learned</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows}
+                                {learnedRows}
+                            </tbody>
+                        </table>
+                        <br />
+                        <button id="shuffle" onClick={this.shuffleCards}>
+                            Shuffle Cards
+                        </button>
+                        <br />
+                        <input
+                            onChange={this.handleChange}
+                            onKeyPress={this.inputKeyPress}
+                            name="front"
+                            placeholder="Front of Card"
+                            value={this.state.front}
+                        />
+                        <input
+                            onChange={this.handleChange}
+                            onKeyPress={this.inputKeyPress}
+                            name="back"
+                            placeholder="Back of Card"
+                            value={this.state.back}
+                        />
+                        <button onClick={this.addCard}>Add Card</button>
+                        <hr />
+                        <button onClick={this.props.switchMode}>Go to Viewer</button>
+                    </div>
+                );
+            }
+
+            handleChange = (event) => {
+                this.setState({
+                    [event.target.name]: event.target.value,
+                });
+            };
+
+            inputKeyPress = (event) => {
+                if (event.key === "Enter") {
+                    this.addCard();
+                    event.target.blur();
+                }
+            };
+
+            addCard = () => {
+                this.props.addCard(this.state.front, this.state.back);
+                this.setState({
+                    front: "",
+                    back: "",
+                });
+            };
+
+            deleteCard = (event) => {
+                this.props.deleteCard(event.target.dataset.index);
+            };
+
+            deleteLearnedCard = (event) => {
+                this.props.deleteLearnedCard(event.target.dataset.index);
+            };
+
+            learnCard = (event) => {
+                this.props.learnCard(event.target.dataset.index);
+            };
+
+            unlearnCard = (event) => {
+                this.props.unlearnCard(event.target.dataset.index);
+            };
+
+            shuffleCards = () => {
+                this.props.shuffleCards();
+            };
+        }
+
+        class CardViewer extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    currentCard: 0,
+                    side: "front",
+                };
+            }
+
+            render() {
+                let content =
+                    this.props.cards[this.state.currentCard % this.props.cards.length] || "";
+                if (content !== "") {
+                    content = content[this.state.side];
+                }
+                return (
+                    <div>
+                        <h2>Card Viewer</h2>
+                        <div className="card" onClick={this.switchSide}>
+                            <h3 className="content">{content}</h3>
+                        </div>
+                        <button onClick={this.newCard}>New Card</button>
+                        <hr />
+                        <button onClick={this.props.switchMode}>Go to Editor</button>
+                    </div>
+                );
+            }
+
+            switchSide = () => {
+                this.setState((state) => ({
+                    side: state.side === "front" ? "back" : "front",
+                }));
+            };
+
+            newCard = () => {
+                this.setState((state) => ({
+                    side: "front",
+                    currentCard: state.currentCard + 1,
+                }));
+            };
+        }
+
+        class App extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    editor: true,
+                    cards: [],
+                    learnedCards: [],
+                };
+            }
+
+            render() {
+                if (this.state.editor) {
+                    return (
+                        <CardEditor
+                            cards={this.state.cards}
+                            learnedCards={this.state.learnedCards}
+                            switchMode={this.switchMode}
+                            addCard={this.addCard}
+                            deleteCard={this.deleteCard}
+                            deleteLearnedCard={this.deleteLearnedCard}
+                            learnCard={this.learnCard}
+                            unlearnCard={this.unlearnCard}
+                            shuffleCards={this.shuffleCards}
+                        />
+                    );
+                } else {
+                    return (
+                        <CardViewer cards={this.state.cards} switchMode={this.switchMode} />
+                    );
+                }
+            }
+
+            switchMode = () => {
+                this.setState((state) => ({
+                    editor: !state.editor,
+                }));
+            };
+
+            addCard = (front, back) => {
+                this.setState((state) => ({
+                    cards: [...state.cards, { front, back }],
+                }));
+            };
+
+            deleteCard = (index) => {
+                this.setState((state) => {
+                    const cards = [...state.cards];
+                    cards.splice(index, 1);
+                    return { cards };
+                });
+            };
+
+            deleteLearnedCard = (index) => {
+                this.setState((state) => {
+                    const learnedCards = [...state.learnedCards];
+                    learnedCards.splice(index, 1);
+                    return { learnedCards };
+                });
+            };
+
+            learnCard = (index) => {
+                this.setState((state) => {
+                    const cards = [...state.cards];
+                    const learnedCard = cards.splice(index, 1)[0];
+                    return {
+                        cards: cards,
+                        learnedCards: [...state.learnedCards, learnedCard],
+                    };
+                });
+            };
+
+            unlearnCard = (index) => {
+                this.setState((state) => {
+                    const learnedCards = [...state.learnedCards];
+                    const card = learnedCards.splice(index, 1)[0];
+                    return {
+                        cards: [...state.cards, card],
+                        learnedCards: learnedCards,
+                    };
+                });
+            };
+
+            shuffleCards = () => {
+                this.setState((state) => ({
+                    cards: state.cards.sort(() => Math.random() - 0.5),
+                }));
+            };
+        }
+
+        ReactDOM.render(<App />, document.querySelector("#app"));
+
+    </script>
+</body>
+
+</html>
